@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VayuMitra | वायुमित्र - Urban Air Quality Assistant</title>
+  <meta name="description" content="Urban Air Quality Assistant designed to help families and communities navigate severe winter smog with real-time hyperlocal maps, community reporting, predictive health alerts, and household trackers.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="lang-en theme-calm">
+  <!-- Top Accessibility Bar & Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <div class="brand-icon-wrapper">
+          <svg class="brand-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="20" cy="20" r="18" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+            <path d="M10 18C13 14 20 14 24 18C28 22 32 18 34 16" stroke="#2E7D32" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M7 23C11 19 17 20 22 23C26 26 30 23 32 21" stroke="#00897B" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 28C15 26 19 26 23 28C26 30 29 28 31 27" stroke="#81C784" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="27" cy="12" r="3" fill="#81C784"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-name">VayuMitra</h1>
+            <span class="brand-hindi-tag" aria-hidden="true">वायुमित्र</span>
+          </div>
+          <p class="brand-subtitle" data-i18n="tagline">Your Family's Urban Smog & Clean Air Companion</p>
+        </div>
+      </div>
+
+      <!-- Header Controls: Connection Status, Font Size & Language Switcher -->
+      <div class="header-controls">
+        <!-- Live Connection Status Indicator Pill -->
+        <div class="connection-status-pill online" id="connectionStatusPill" role="status" aria-live="polite" title="Network & Live Data Status">
+          <span class="conn-dot" aria-hidden="true"></span>
+          <span class="conn-label" id="connStatusText" data-i18n="connOnline">Live API Connected</span>
+        </div>
+
+        <div class="font-size-toggle" title="Adjust text size for older family members">
+          <button id="btnTextNormal" class="btn-text-size active" aria-label="Normal text size">A</button>
+          <button id="btnTextLarge" class="btn-text-size" aria-label="Large text size for easy reading">A+</button>
+        </div>
+
+        <!-- Bilingual Toggle Button -->
+        <div class="lang-toggle-wrapper">
+          <button id="langToggleBtn" class="lang-toggle" aria-label="Switch between English and Hindi">
+            <span class="lang-opt lang-opt-en active">English</span>
+            <span class="lang-slider"></span>
+            <span class="lang-opt lang-opt-hi">हिंदी</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Navigation Bar for the 5 Modules -->
+    <nav class="app-nav-bar" aria-label="Main Navigation">
+      <div class="nav-container">
+        <a href="#assessmentSection" class="nav-pill active" id="navPlan">
+          <span class="nav-icon">🛡️</span> <span data-i18n="navPlanText">Family Plan</span>
+        </a>
+        <a href="#hyperlocalMapSection" class="nav-pill" id="navMap">
+          <span class="nav-icon">🗺️</span> <span data-i18n="navMapText">Live AQI Map</span>
+        </a>
+        <a href="#predictiveAlertsSection" class="nav-pill" id="navAlerts">
+          <span class="nav-icon">🔮</span> <span data-i18n="navAlertsText">Health Risk Alerts</span>
+        </a>
+        <a href="#complianceTrackerSection" class="nav-pill" id="navTracker">
+          <span class="nav-icon">✅</span> <span data-i18n="navTrackerText">Daily Tracker</span>
+        </a>
+        <a href="#communitySmogSection" class="nav-pill" id="navCommunity">
+          <span class="nav-icon">📢</span> <span data-i18n="navCommunityText">Smog Reporting</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Offline Alert Notice Bar -->
+    <div id="offlineNoticeBanner" class="offline-alert-bar hidden" role="status" aria-live="polite">
+      <div class="container offline-banner-inner">
+        <span class="offline-icon" aria-hidden="true">📡</span>
+        <span id="offlineBannerText" data-i18n="offlineNoticeText">
+          Offline Mode Active: Using cached neighborhood readings & offline safety plans. New reports and tracker checks will be saved locally.
+        </span>
+      </div>
+    </div>
+
+    <!-- Live Ambient Winter Smog Status Banner -->
+    <div class="smog-ticker-bar">
+      <div class="ticker-content">
+        <span class="ticker-badge" data-i18n="smogSeason">❄️ Winter Smog Advisory:</span>
+        <span class="ticker-text" data-i18n="smogNotice">Cold morning air traps vehicle fumes near ground level (Inversion). Protect children and elders today.</span>
+      </div>
+      <div class="ticker-quick-stat" id="currentAqiPreview">
+        <span class="aqi-dot severe" aria-hidden="true"></span>
+        <span id="headerAqiText">Delhi-NCR AQI: <strong>385 (Very Poor)</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container">
+      
+      <!-- Welcome Hero / Mission Statement -->
+      <section class="hero-card">
+        <div class="hero-body">
+          <div class="hero-text-side">
+            <div class="pill-label" data-i18n="heroPill">Winter Smog Survival & Action Guide</div>
+            <h2 class="hero-heading" data-i18n="heroTitle">Clean, Healthy Air for Every Generation at Home</h2>
+            <p class="hero-desc" data-i18n="heroDesc">
+              Winter smog is not just fog—it's toxic PM2.5 smoke held down by cold air. In 2 minutes, get a tailored daily action plan to keep your kids, parents, and lungs safe without breaking your budget.
+            </p>
+            <div class="hero-features-list">
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat1">Low-Emission Routines</span></span>
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat2">Budget Indoor Hacks</span></span>
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat3">Clean Sustainable Swaps</span></span>
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat4">'Why This Matters' Badges</span></span>
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat5">Street-Level Live Map</span></span>
+              <span class="hero-feat"><i class="icon-check">✓</i> <span data-i18n="feat6">Predictive Health Alerts</span></span>
+            </div>
+          </div>
+          <div class="hero-graphic-side">
+            <div class="aqi-dial-widget">
+              <div class="dial-header">
+                <span data-i18n="dialTitle">Today's Smog Index</span>
+                <span class="dial-badge severe" id="aqiStatusBadge">Very Poor</span>
+              </div>
+              <div class="dial-number" id="dialAqiNumber">385</div>
+              <div class="dial-meter-bar">
+                <div class="dial-fill" id="dialAqiFill" style="width: 77%;"></div>
+              </div>
+              <div class="dial-scale-labels">
+                <span>0 (Clean)</span>
+                <span>200</span>
+                <span>300</span>
+                <span>400</span>
+                <span>500 (Hazardous)</span>
+              </div>
+              <p class="dial-note" id="dialAqiNote" data-i18n="dialNoteText">
+                Ground-level PM2.5 peaks between 6:00 AM - 9:30 AM due to thermal inversion.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURE 1: HYPERLOCAL LIVE AQI MAP SECTION -->
+      <section class="feature-section" id="hyperlocalMapSection">
+        <div class="section-header-row">
+          <div>
+            <div class="section-tag" data-i18n="mapTag">Feature 1 • Street-Level Monitoring</div>
+            <h3 class="section-title" data-i18n="mapTitle">Hyperlocal Live AQI Map</h3>
+            <p class="section-subtitle" data-i18n="mapSubtitle">Real-time street & neighborhood pollution readings to pinpoint pollution hotspots near your home.</p>
+          </div>
+          <div class="map-controls-group">
+            <button type="button" id="btnToggleRadar" class="btn-ghost-small" title="Toggle between interactive map & radar view">
+              <span id="toggleRadarText" data-i18n="btnRadarView">📡 Radar View</span>
+            </button>
+            <button type="button" id="btnLocateStreet" class="btn-tool-action">
+              <span class="btn-icon">📍</span>
+              <span data-i18n="btnLocateMe">Locate My Street</span>
+            </button>
+            <div class="select-wrapper select-compact">
+              <select id="mapCitySelector" class="form-select select-sm" aria-label="Select City for Map">
+                <option value="delhi">Delhi-NCR (12 Micro-Stations)</option>
+                <option value="mumbai">Mumbai Metropolitan (6 Micro-Stations)</option>
+                <option value="lucknow">Lucknow Urban (5 Micro-Stations)</option>
+                <option value="patna">Patna Urban (4 Micro-Stations)</option>
+                <option value="kolkata">Kolkata Urban (4 Micro-Stations)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-card-wrapper">
+          <!-- Main Map View Container -->
+          <div class="map-interactive-view">
+            <div id="hyperlocalMapContainer" class="leaflet-map-canvas" style="min-height: 420px; border-radius: 14px 14px 0 0;"></div>
+            
+            <!-- Map Overlay Legend & Weather Bar -->
+            <div class="map-legend-bar">
+              <div class="legend-scale">
+                <span class="legend-label" data-i18n="legendLabel">Smog Severity:</span>
+                <span class="legend-chip c-mod">100-200 Moderate</span>
+                <span class="legend-chip c-poor">200-300 Poor</span>
+                <span class="legend-chip c-vpoor">300-400 Very Poor</span>
+                <span class="legend-chip c-severe">400+ Severe</span>
+              </div>
+              <div class="legend-wind" id="mapWindText">
+                <span>💨 Wind: <strong>NW 4 km/h</strong> (Cold, Inversion Cap: 140m)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Micro-Sensor Drilldown Cards Grid -->
+          <div class="micro-stations-strip">
+            <div class="strip-header">
+              <strong data-i18n="nearbySensorsTitle">Live Neighborhood Micro-Sensors (Click to inspect street conditions)</strong>
+              <span class="strip-badge" id="activeCitySensorCount">12 Sensors Active</span>
+            </div>
+            <div class="micro-stations-grid" id="microSensorsGrid">
+              <!-- Dynamically populated street cards -->
+            </div>
+          </div>
+
+          <!-- Selected Street Details Callout -->
+          <div class="selected-street-box" id="selectedStreetBox">
+            <!-- Injected on pin click -->
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURE 3: PREDICTIVE HEALTH RISK ALERTS SECTION -->
+      <section class="feature-section" id="predictiveAlertsSection">
+        <div class="section-header-row">
+          <div>
+            <div class="section-tag tag-purple" data-i18n="predictTag">Feature 2 • Automated Preventive Safeguards</div>
+            <h3 class="section-title" data-i18n="predictTitle">Predictive Health Risk Alerts</h3>
+            <p class="section-subtitle" data-i18n="predictSubtitle">Automated 24-hour smog spike forecasts paired with tailored medical warnings to avert acute distress.</p>
+          </div>
+          <div class="alert-action-buttons">
+            <button type="button" id="btnToggleAlerts" class="btn-tool-action btn-notify">
+              <span class="btn-icon">🔔</span>
+              <span id="notifyBtnText" data-i18n="btnEnableAlerts">Enable Spike Warnings</span>
+            </button>
+            <button type="button" id="btnSimulateSpike" class="btn-ghost" data-i18n="btnSimulate">
+              ⚡ Test Smog Spike Alert
+            </button>
+          </div>
+        </div>
+
+        <div class="predictive-card-wrapper">
+          <!-- 24-Hour Smog Trend Curve -->
+          <div class="forecast-timeline-panel">
+            <div class="forecast-header">
+              <h4 class="forecast-heading" data-i18n="forecast24Title">24-Hour Predictive Smog Curve (Ground-Level Inversion Dynamics)</h4>
+              <span class="forecast-subnote" id="forecastSubnote" data-i18n="forecastScrubHint">Hover or tap on hours to see atmospheric triggers & medical precautions</span>
+            </div>
+            
+            <div class="forecast-hours-timeline" id="forecastHoursTimeline">
+              <!-- Dynamically populated 24h curve blocks -->
+            </div>
+
+            <!-- Inversion Science Badge -->
+            <div class="why-matters-badge forecast-why-badge">
+              <span class="why-tag-title" data-i18n="badgeWhy">Why This Matters:</span>
+              <p class="why-matters-text" data-i18n="forecastScienceText">
+                Thermal inversion compresses 12 hours of vehicle and industrial emissions into the bottom 150 meters between 5:30 AM and 9:00 AM. Spikes are predictable—taking preventive medication 45 minutes before the peak prevents emergency hospital visits.
+              </p>
+            </div>
+          </div>
+
+          <!-- Medical Profile-Driven Risk Cards -->
+          <div class="medical-risk-grid" id="medicalRiskGrid">
+            <!-- Dynamically populated tailored risk cards based on selected household profile -->
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURE 4: INTERACTIVE HOUSEHOLD COMPLIANCE TRACKER -->
+      <section class="feature-section" id="complianceTrackerSection">
+        <div class="section-header-row">
+          <div>
+            <div class="section-tag tag-green" data-i18n="trackerTag">Feature 3 • Daily Routine Accountability</div>
+            <h3 class="section-title" data-i18n="trackerTitle">Interactive Household Compliance Tracker</h3>
+            <p class="section-subtitle" data-i18n="trackerSubtitle">Check off your family's morning, afternoon, and night safety habits to build a continuous clean-air shield.</p>
+          </div>
+          <div class="tracker-header-actions">
+            <button type="button" id="btnResetTracker" class="btn-ghost" data-i18n="btnResetTracker">Reset Checklist</button>
+            <button type="button" id="btnShareTrackerScore" class="btn-tool-action tool-whatsapp">
+              <span class="btn-icon">💬</span>
+              <span data-i18n="btnShareScore">Share Today's Score</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tracker-card-wrapper">
+          <!-- Tracker Score & Streak Header Bar -->
+          <div class="tracker-score-banner">
+            <div class="score-dial-wrap">
+              <div class="score-circle" id="scoreCircle">
+                <span class="score-pct" id="scorePercentDisplay">0%</span>
+              </div>
+              <div class="score-info">
+                <span class="score-shield-tier" id="shieldTierBadge" data-i18n="tierInitial">Vulnerable • Start Routine</span>
+                <h4 class="score-family-title" data-i18n="scoreTitle">Today's Family Smog Shield</h4>
+                <p class="score-subtitle" id="scoreSummaryText" data-i18n="scoreSubInit">Check off items below as your household completes them today.</p>
+              </div>
+            </div>
+
+            <div class="streak-box">
+              <span class="streak-icon" aria-hidden="true">🔥</span>
+              <div class="streak-text">
+                <strong class="streak-count" id="streakCountText">3 Days Active</strong>
+                <small data-i18n="streakLabel">Clean Air Habit Streak</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3-Phase Interactive Checklist Grid -->
+          <div class="checklist-phases-grid">
+            
+            <!-- Phase 1: Morning Inversion Shield -->
+            <div class="tracker-phase-card">
+              <div class="phase-card-header phase-morning">
+                <span class="phase-icon" aria-hidden="true">🌅</span>
+                <div>
+                  <h5 class="phase-title" data-i18n="phase1Title">Morning Smog Shield (6:00 AM - 10:00 AM)</h5>
+                  <span class="phase-desc" data-i18n="phase1Desc">Mitigate peak ground-level inversion smoke</span>
+                </div>
+              </div>
+              <div class="phase-items-list" id="phase1Items">
+                <!-- Checklist items injected via JS -->
+              </div>
+            </div>
+
+            <!-- Phase 2: Midday Sun Protocol -->
+            <div class="tracker-phase-card">
+              <div class="phase-card-header phase-midday">
+                <span class="phase-icon" aria-hidden="true">☀️</span>
+                <div>
+                  <h5 class="phase-title" data-i18n="phase2Title">Midday Solar Window (11:30 AM - 3:30 PM)</h5>
+                  <span class="phase-desc" data-i18n="phase2Desc">Cross-ventilation, wet mopping & safe sunlight</span>
+                </div>
+              </div>
+              <div class="phase-items-list" id="phase2Items">
+                <!-- Checklist items injected via JS -->
+              </div>
+            </div>
+
+            <!-- Phase 3: Evening & Night Sanctuary -->
+            <div class="tracker-phase-card">
+              <div class="phase-card-header phase-night">
+                <span class="phase-icon" aria-hidden="true">🌙</span>
+                <div>
+                  <h5 class="phase-title" data-i18n="phase3Title">Evening & Night Sanctuary (5:30 PM Onward)</h5>
+                  <span class="phase-desc" data-i18n="phase3Desc">Clean cooking, door seals, bedroom filtration</span>
+                </div>
+              </div>
+              <div class="phase-items-list" id="phase3Items">
+                <!-- Checklist items injected via JS -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURE 2: COMMUNITY SMOG REPORTING SECTION -->
+      <section class="feature-section" id="communitySmogSection">
+        <div class="section-header-row">
+          <div>
+            <div class="section-tag tag-orange" data-i18n="commTag">Feature 4 • Citizen Action & Accountability</div>
+            <h3 class="section-title" data-i18n="commTitle">Community Smog Reporting</h3>
+            <p class="section-subtitle" data-i18n="commSubtitle">Log and flag local pollution sources—waste burning, construction dust, or industrial chimneys—to alert neighbors and municipal helplines.</p>
+          </div>
+          <button type="button" id="btnOpenReportModal" class="btn-primary-large btn-sm-report">
+            <span class="btn-icon">🚨</span>
+            <span data-i18n="btnLogIncident">Report Local Smoke / Dust</span>
+          </button>
+        </div>
+
+        <div class="community-grid">
+          
+          <!-- Left Side: Interactive Quick Report Form -->
+          <div class="community-form-card" id="quickReportCard">
+            <h4 class="card-subtitle" data-i18n="formReportHead">Log a New Pollution Source</h4>
+            <form id="communityReportForm" class="comm-form">
+              <div class="form-group">
+                <label for="reportType" class="form-label" data-i18n="labelIncidentType">Pollution Category</label>
+                <div class="select-wrapper">
+                  <select id="reportType" class="form-select">
+                    <option value="waste-burning" data-i18n="typeWaste">🔥 Open Garbage / Garden Leaves Burning</option>
+                    <option value="construction" data-i18n="typeConst">🏗️ Uncovered Construction / Demolition Dust</option>
+                    <option value="factory" data-i18n="typeFactory">🏭 Factory Chimney / Illegal Boiler Smoke</option>
+                    <option value="vehicle" data-i18n="typeVehicle">🚚 Heavy Vehicle / Visible Black Diesel Exhaust</option>
+                    <option value="sweeping" data-i18n="typeSweeping">🧹 Dry Street Sweeping Kicking Heavy Dust</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="reportStreet" class="form-label" data-i18n="labelLocationStreet">Street Address / Landmark</label>
+                <div class="input-with-button">
+                  <input type="text" id="reportStreet" class="form-input" placeholder="e.g. Near Metro Pillar 142, Main Market Road" required>
+                  <button type="button" id="btnUseCurrentPin" class="btn-ghost-small" title="Auto-fill with current street">📍 Map Pin</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="reportSeverity" class="form-label" data-i18n="labelSeverityLevel">Smoke / Dust Intensity</label>
+                <div class="select-wrapper">
+                  <select id="reportSeverity" class="form-select">
+                    <option value="moderate" data-i18n="sevModerate">Moderate • Localized haze & smell</option>
+                    <option value="thick" selected data-i18n="sevThick">Thick Black Smoke • Obstructs vision</option>
+                    <option value="hazard" data-i18n="sevHazard">Severe Breathing Hazard • Eye burning</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="reportNotes" class="form-label" data-i18n="labelNotes">Observations / Details</label>
+                <textarea id="reportNotes" class="form-input form-textarea" rows="2" placeholder="e.g. Heaped garden leaves lit near park wall, spreading dense soot into residential balconies."></textarea>
+              </div>
+
+              <button type="submit" id="btnSubmitReport" class="btn-primary-large btn-full">
+                <span data-i18n="btnSubmitReportText">Publish Report & Alert Community</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Right Side: Live Community Incident Feed -->
+          <div class="community-feed-card">
+            <div class="feed-header">
+              <div class="feed-title-wrap">
+                <h4 class="card-subtitle" data-i18n="feedTitle">Active Community Reports Feed</h4>
+                <span class="feed-live-indicator"><span class="pulse-green"></span> Live Stream</span>
+              </div>
+              <div class="feed-filter-chips">
+                <button type="button" class="feed-filter active" data-filter="all" data-i18n="filterAll">All</button>
+                <button type="button" class="feed-filter" data-filter="waste-burning" data-i18n="filterBurning">Burning</button>
+                <button type="button" class="feed-filter" data-filter="construction" data-i18n="filterDust">Dust</button>
+                <button type="button" class="feed-filter" data-filter="factory" data-i18n="filterFactory">Factory</button>
+              </div>
+            </div>
+
+            <div class="feed-items-list" id="communityFeedList">
+              <!-- Populated dynamically with community reports -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Input Form Card: The 3-Step Assessment -->
+      <section class="assessment-section" id="assessmentSection">
+        <div class="section-header-row">
+          <div>
+            <div class="section-tag" data-i18n="planTag">Core Generator • Household Shield</div>
+            <h3 class="section-title" data-i18n="formTitle">Personalize Your Household's Air Plan</h3>
+            <p class="section-subtitle" data-i18n="formSubtitle">Tell us about your home and routine so we can give you realistic, actionable steps.</p>
+          </div>
+          <button type="button" id="btnResetForm" class="btn-ghost" data-i18n="resetDefaults">Reset to Defaults</button>
+        </div>
+
+        <form id="vayuForm" class="vayu-form" novalidate>
+          
+          <!-- STEP 1: Location & Smog Context -->
+          <div class="form-card step-card">
+            <div class="step-badge">
+              <span class="step-num">1</span>
+              <span class="step-label" data-i18n="step1Label">Location & Smog Level</span>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="citySelect" class="form-label" data-i18n="labelCity">City or Region</label>
+                <div class="select-wrapper">
+                  <select id="citySelect" class="form-select">
+                    <option value="delhi-anand-vihar">Delhi - Anand Vihar / East Delhi (AQI ~430)</option>
+                    <option value="delhi-rohini">Delhi - Rohini / North Delhi (AQI ~395)</option>
+                    <option value="delhi-south">Delhi - South Delhi / Saket (AQI ~340)</option>
+                    <option value="noida">Noida / Greater Noida (AQI ~415)</option>
+                    <option value="gurugram">Gurugram / DLF (AQI ~375)</option>
+                    <option value="lucknow">Lucknow - Gomti Nagar / Charbagh (AQI ~360)</option>
+                    <option value="patna">Patna - Danapur / Kankarbagh (AQI ~390)</option>
+                    <option value="kolkata">Kolkata - Jadavpur / Howrah (AQI ~290)</option>
+                    <option value="mumbai">Mumbai - Chembur / BKC (AQI ~210)</option>
+                    <option value="kanpur">Kanpur - Civil Lines (AQI ~350)</option>
+                    <option value="custom">Other Urban City / Neighborhood</option>
+                  </select>
+                </div>
+                <div id="customCityWrap" class="custom-city-input hidden">
+                  <input type="text" id="customCityInput" class="form-input" placeholder="Enter your city or locality (e.g. Jaipur, Ludhiana)" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="aqiLevelSlider" class="form-label">
+                  <span data-i18n="labelAqiLevel">Expected Winter Smog Severity:</span>
+                  <strong id="aqiSliderDisplay" class="aqi-display-text text-severe">AQI 385 (Very Poor)</strong>
+                </label>
+                <input type="range" id="aqiLevelSlider" class="form-range" min="150" max="499" value="385" step="5">
+                <div class="range-ticks">
+                  <span class="tick" data-val="150" data-i18n="aqiModerate">150 Moderate</span>
+                  <span class="tick" data-val="250" data-i18n="aqiPoor">250 Poor</span>
+                  <span class="tick" data-val="350" data-i18n="aqiVeryPoor">350 Very Poor</span>
+                  <span class="tick" data-val="450" data-i18n="aqiSevere">450+ Severe</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2: Household Setup & Vulnerability -->
+          <div class="form-card step-card">
+            <div class="step-badge">
+              <span class="step-num">2</span>
+              <span class="step-label" data-i18n="step2Label">Household Setup & Health Concerns</span>
+            </div>
+            <p class="step-hint" data-i18n="step2Hint">Select all members living in your home. Smog impacts different bodies differently.</p>
+
+            <div class="checkbox-chip-grid">
+              
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="infants" class="chip-checkbox">
+                <span class="chip-content">
+                  <span class="chip-icon">👶</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhInfants">Babies / Toddlers (0-5 yrs)</strong>
+                    <small class="chip-desc" data-i18n="hhInfantsDesc">Breathe 2x faster, delicate airways</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="kids" class="chip-checkbox" checked>
+                <span class="chip-content">
+                  <span class="chip-icon">🎒</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhKids">School Children (6-16 yrs)</strong>
+                    <small class="chip-desc" data-i18n="hhKidsDesc">Morning school bus, outdoor games</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="elders" class="chip-checkbox" checked>
+                <span class="chip-content">
+                  <span class="chip-icon">👵</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhElders">Elders / Grandparents (60+ yrs)</strong>
+                    <small class="chip-desc" data-i18n="hhEldersDesc">Heart & chronic lung vulnerability</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="asthma" class="chip-checkbox" checked>
+                <span class="chip-content">
+                  <span class="chip-icon">🫁</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhAsthma">Asthma / Bronchitis / Allergies</strong>
+                    <small class="chip-desc" data-i18n="hhAsthmaDesc">High risk of acute smog attacks</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="pregnant" class="chip-checkbox">
+                <span class="chip-content">
+                  <span class="chip-icon">🤰</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhPregnant">Pregnant Family Member</strong>
+                    <small class="chip-desc" data-i18n="hhPregnantDesc">PM2.5 crosses placental barrier</small>
+                  </span>
+                </span>
+              </label>
+
+              <label class="chip-item">
+                <input type="checkbox" name="household" value="pets" class="chip-checkbox">
+                <span class="chip-content">
+                  <span class="chip-icon">🐕</span>
+                  <span class="chip-text">
+                    <strong class="chip-title" data-i18n="hhPets">Domestic Pets (Dogs / Cats)</strong>
+                    <small class="chip-desc" data-i18n="hhPetsDesc">Close to floor dust & particulate deposit</small>
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- STEP 3: Daily Routine (Commute, Cooking, Heating, Outdoor habits) -->
+          <div class="form-card step-card">
+            <div class="step-badge">
+              <span class="step-num">3</span>
+              <span class="step-label" data-i18n="step3Label">Daily Routine & Daily Habits</span>
+            </div>
+            <p class="step-hint" data-i18n="step3Hint">Understanding your hours and appliances helps find the easiest swaps.</p>
+
+            <div class="form-grid-3">
+              
+              <!-- Commute Mode -->
+              <div class="form-group">
+                <label for="commuteMode" class="form-label" data-i18n="labelCommuteMode">Daily Commute Mode</label>
+                <div class="select-wrapper">
+                  <select id="commuteMode" class="form-select">
+                    <option value="two-wheeler" selected data-i18n="optTwoWheeler">🛵 Two-Wheeler / Motorcycle / Scooter</option>
+                    <option value="auto" data-i18n="optAuto">🛺 Open Auto-Rickshaw / E-Rickshaw</option>
+                    <option value="bus" data-i18n="optBus">🚌 Public Bus / Non-AC Transit</option>
+                    <option value="metro" data-i18n="optMetro">🚇 Metro Rail / AC Sealed Car</option>
+                    <option value="walk" data-i18n="optWalk">🚶 Walking / Cycling to work/college</option>
+                    <option value="wfh" data-i18n="optWfh">💻 Work From Home / Stay Indoors</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Commute Timing -->
+              <div class="form-group">
+                <label for="commuteTime" class="form-label" data-i18n="labelCommuteTime">Primary Outdoor / Commute Hours</label>
+                <div class="select-wrapper">
+                  <select id="commuteTime" class="form-select">
+                    <option value="early-morning" selected data-i18n="optEarlyMorning">🌅 Early Morning Peak (6:30 AM - 8:30 AM)</option>
+                    <option value="regular-morning" data-i18n="optRegMorning">☀️ Standard Morning (8:30 AM - 10:30 AM)</option>
+                    <option value="midday" data-i18n="optMidday">🌤️ Midday / Afternoon (11:00 AM - 3:30 PM)</option>
+                    <option value="evening" data-i18n="optEvening">🌆 Evening Rush (5:30 PM - 8:30 PM)</option>
+                    <option value="night" data-i18n="optNight">🌙 Late Night (After 8:30 PM)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Cooking Method -->
+              <div class="form-group">
+                <label for="cookingSetup" class="form-label" data-i18n="labelCookingSetup">Kitchen Cooking Setup</label>
+                <div class="select-wrapper">
+                  <select id="cookingSetup" class="form-select">
+                    <option value="lpg-no-exhaust" selected data-i18n="optLpgNoExhaust">🔥 Gas Stove WITHOUT Exhaust / Chimney</option>
+                    <option value="lpg-exhaust" data-i18n="optLpgExhaust">💨 Gas Stove WITH Working Exhaust / Chimney</option>
+                    <option value="induction" data-i18n="optInduction">⚡ Electric Induction / Clean Cooktop</option>
+                    <option value="chulha" data-i18n="optChulha">🪵 Biomass / Wood Fire / Traditional Chulha</option>
+                    <option value="frying" data-i18n="optFrying">🍳 Daily Deep Frying / Heavy Tadka Smoking</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Winter Heating Method -->
+              <div class="form-group">
+                <label for="heatingSetup" class="form-label" data-i18n="labelHeatingSetup">Winter Room Heating Method</label>
+                <div class="select-wrapper">
+                  <select id="heatingSetup" class="form-select">
+                    <option value="angithi" data-i18n="optAngithi">🪵 Coal Angithi / Wood Bonfire / Open Embers</option>
+                    <option value="halogen" selected data-i18n="optHalogen">☀️ Halogen / Coil / Quartz Glowing Heater</option>
+                    <option value="blower" data-i18n="optBlower">🌀 Fan / Blower Room Heater (Drying air)</option>
+                    <option value="oil" data-i18n="optOil">🛡️ Oil-Filled Radiator (Sealed, Safe)</option>
+                    <option value="none" data-i18n="optNone">🧣 Blankets, Hot Water Bottles & Woolens Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Outdoor Morning Exercise Habit -->
+              <div class="form-group">
+                <label for="exerciseHabit" class="form-label" data-i18n="labelExerciseHabit">Morning Walks & Outdoor Exercise</label>
+                <div class="select-wrapper">
+                  <select id="exerciseHabit" class="form-select">
+                    <option value="early-walk" selected data-i18n="optEarlyWalk">🚶‍♂️ Grandparents / Self Early Morning Walk (6-8 AM)</option>
+                    <option value="evening-walk" data-i18n="optEveningWalk">🏃 Evening Jog / Kids Outdoor Sports (5-7 PM)</option>
+                    <option value="afternoon-sun" data-i18n="optAfternoonSun">☀️ Afternoon Sunny Stroll (12-3 PM)</option>
+                    <option value="indoor-only" data-i18n="optIndoorOnly">🧘 Indoor Yoga / Home Exercise Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Indoor Ventilation & Habits -->
+              <div class="form-group">
+                <label for="ventilationHabit" class="form-label" data-i18n="labelVentHabit">Current Window & Ventilation Habit</label>
+                <div class="select-wrapper">
+                  <select id="ventilationHabit" class="form-select">
+                    <option value="morning-open" selected data-i18n="optMorningOpen">🪟 Windows opened early morning for 'fresh air'</option>
+                    <option value="closed-all-day" data-i18n="optClosedAllDay">🔒 Windows shut tightly all 24 hours</option>
+                    <option value="afternoon-open" data-i18n="optAfternoonOpen">☀️ Windows opened around sunny midday (1-3 PM)</option>
+                    <option value="agarbatti" data-i18n="optAgarbatti">🪔 Daily Agarbatti / Dhoop / Incense Sticks burned</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Action Button Row -->
+          <div class="action-submit-row">
+            <button type="submit" id="btnGeneratePlan" class="btn-primary-large">
+              <span class="btn-icon">✨</span>
+              <span class="btn-text" data-i18n="btnGenerateText">Generate My Family's Daily Action Plan</span>
+            </button>
+            <p class="submit-note" data-i18n="submitNote">Takes 1 second • Tailored to your household's exact health vulnerabilities and smog conditions.</p>
+          </div>
+
+        </form>
+      </section>
+
+      <!-- RESULTS SECTION: The Personalized Daily Action Plan -->
+      <section class="results-section hidden" id="resultsSection" aria-live="polite">
+        
+        <!-- Results Header Banner -->
+        <div class="results-header-banner">
+          <div class="results-headline-wrap">
+            <div class="results-badge" data-i18n="resultsBadge">Personalized Action Plan Active</div>
+            <h2 class="results-title" data-i18n="resultsTitle">Today's Smog Shield for Your Family</h2>
+            <p class="results-meta" id="resultsMetaSummary">
+              <!-- Filled dynamically by JS -->
+            </p>
+          </div>
+
+          <!-- Utility Actions: Read Aloud (TTS), Share WhatsApp, Print -->
+          <div class="results-tools">
+            <button id="btnReadAloud" class="tool-btn" title="Listen to tips read aloud" aria-label="Read plan aloud">
+              <span class="tool-icon">🔊</span>
+              <span class="tool-label" data-i18n="listenPlan">Read Aloud</span>
+            </button>
+            <button id="btnShareWhatsApp" class="tool-btn tool-whatsapp" title="Share with family on WhatsApp" aria-label="Share on WhatsApp">
+              <span class="tool-icon">💬</span>
+              <span class="tool-label" data-i18n="shareWhatsApp">Share with Family</span>
+            </button>
+            <button id="btnPrintPlan" class="tool-btn" title="Print or save as PDF" aria-label="Print plan">
+              <span class="tool-icon">🖨️</span>
+              <span class="tool-label" data-i18n="printPlan">Print Plan</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Household Health Alert Callout (if vulnerable members present) -->
+        <div id="vulnerabilityAlertBox" class="vulnerability-box">
+          <!-- Injected dynamically -->
+        </div>
+
+        <!-- THE THREE MANDATORY ACTION CARDS -->
+        <div class="plan-cards-grid">
+          
+          <!-- CARD 1: Low-Emission Daily Routines -->
+          <div class="action-category-card card-routines" id="cardRoutines">
+            <div class="card-top-header">
+              <div class="card-icon-bubble bubble-routines">
+                <span>🚲</span>
+              </div>
+              <div class="card-header-titles">
+                <span class="card-badge-pill" data-i18n="card1Category">Card 1 • Timing & Travel</span>
+                <h3 class="card-title" data-i18n="card1Title">Low-Emission Daily Routines</h3>
+                <p class="card-desc" data-i18n="card1Desc">Safer commute hours, shifting outdoor activities, and reducing exposure peaks.</p>
+              </div>
+            </div>
+            <div class="tips-container" id="containerRoutines">
+              <!-- Dynamically populated tips with Why This Matters badges -->
+            </div>
+          </div>
+
+          <!-- CARD 2: Indoor Air Quality Hacks -->
+          <div class="action-category-card card-indoor" id="cardIndoor">
+            <div class="card-top-header">
+              <div class="card-icon-bubble bubble-indoor">
+                <span>🏡</span>
+              </div>
+              <div class="card-header-titles">
+                <span class="card-badge-pill" data-i18n="card2Category">Card 2 • Home & Budget</span>
+                <h3 class="card-title" data-i18n="card2Title">Indoor Air Quality Hacks</h3>
+                <p class="card-desc" data-i18n="card2Desc">Budget-friendly DIY fixes, optimal ventilation timing, and natural green purifiers.</p>
+              </div>
+            </div>
+            <div class="tips-container" id="containerIndoor">
+              <!-- Dynamically populated tips with Why This Matters badges -->
+            </div>
+          </div>
+
+          <!-- CARD 3: Sustainable Swaps -->
+          <div class="action-category-card card-swaps" id="cardSwaps">
+            <div class="card-top-header">
+              <div class="card-icon-bubble bubble-swaps">
+                <span>🌱</span>
+              </div>
+              <div class="card-header-titles">
+                <span class="card-badge-pill" data-i18n="card3Category">Card 3 • Cleaner Habits</span>
+                <h3 class="card-title" data-i18n="card3Title">Sustainable Swaps</h3>
+                <p class="card-desc" data-i18n="card3Desc">Cleaner alternatives for everyday cooking, heating, masks, and community habits.</p>
+              </div>
+            </div>
+            <div class="tips-container" id="containerSwaps">
+              <!-- Dynamically populated tips with Why This Matters badges -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Interactive DIY Corsi-Rosenthal / Air Filter Cost Comparison Guide -->
+        <div class="diy-spotlight-card">
+          <div class="diy-body">
+            <div class="diy-text">
+              <span class="diy-pill" data-i18n="diyPill">💡 Budget-Friendly Community Secret</span>
+              <h4 class="diy-title" data-i18n="diyTitle">Build a ₹900 DIY Air Cleaner (Corsi-Rosenthal Box Fan)</h4>
+              <p class="diy-desc" data-i18n="diyDesc">
+                Commercial air purifiers cost ₹10,000 to ₹35,000. You can build an equally powerful air filter using a simple box or table fan and a MERV-13 / True HEPA AC filter strapped tightly with masking tape.
+              </p>
+              <div class="diy-comparison-stats">
+                <div class="stat-box">
+                  <span class="stat-num">₹950</span>
+                  <span class="stat-label" data-i18n="diyCostLabel">DIY Filter Cost</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-num">85-90%</span>
+                  <span class="stat-label" data-i18n="diyCleanRate">PM2.5 Drop in 30 Mins</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-num">₹15,000+</span>
+                  <span class="stat-label" data-i18n="brandPurifier">Branded Machine Cost</span>
+                </div>
+              </div>
+            </div>
+            <div class="diy-action-side">
+              <button id="btnViewDiyGuide" class="btn-secondary" data-i18n="btnDiyGuide">View 3-Step DIY Assembly</button>
+            </div>
+          </div>
+
+          <!-- Collapsible DIY Steps -->
+          <div id="diyModalSteps" class="diy-steps-panel hidden">
+            <h5 class="panel-subtitle" data-i18n="diyStepsTitle">How to Assemble at Home in 10 Minutes:</h5>
+            <ol class="steps-ordered-list">
+              <li>
+                <strong data-i18n="diyStep1Head">Step 1: Get a MERV-13 or HEPA AC Filter:</strong>
+                <span data-i18n="diyStep1Text">Available on Amazon or local AC parts market for ₹400-₹600. Look for dimensions matching your table fan or box fan (e.g. 16x16 or 12x12 inch).</span>
+              </li>
+              <li>
+                <strong data-i18n="diyStep2Head">Step 2: Seal Against the INTAKE (Back):</strong>
+                <span data-i18n="diyStep2Text">Place the filter firmly against the back intake grill of the fan (arrow pointing TOWARD the fan blades). Secure all 4 edges with brown packing tape or duct tape so zero air leaks around the sides.</span>
+              </li>
+              <li>
+                <strong data-i18n="diyStep3Head">Step 3: Run on Medium in Bedroom:</strong>
+                <span data-i18n="diyStep3Text">Run for 45 minutes in a closed bedroom before bedtime. It quietly scrubs airborne particles down to safe levels for kids and elders.</span>
+              </li>
+            </ol>
+            <div class="why-badge-inline">
+              <span class="badge-tag" data-i18n="badgeWhy">Why This Matters:</span>
+              <span data-i18n="diyWhyText">Air purifiers are simply a fan pulling dirty air through a dense fibrous mesh. The DIY version moves the same volume of air through certified filter media at 1/15th the price.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Natural Air Purifying Indoor Plants Guide -->
+        <div class="plants-showcase-card">
+          <h4 class="plants-heading" data-i18n="plantsTitle">🌿 Recommended NASA-Clean Indoor Green Allies</h4>
+          <p class="plants-desc" data-i18n="plantsDesc">These hardy, low-cost plants thrive in winter, require watering only once a week, and safely freshen indoor living spaces.</p>
+          <div class="plants-grid">
+            <div class="plant-card">
+              <div class="plant-icon">🪴</div>
+              <strong class="plant-name" data-i18n="plant1Name">Snake Plant (Sansevieria)</strong>
+              <span class="plant-badge" data-i18n="plant1Badge">Nighttime Oxygen Star</span>
+              <p class="plant-text" data-i18n="plant1Text">Unlike most plants, it converts CO2 into oxygen during the night. Perfect for elders' and children's bedrooms.</p>
+            </div>
+            <div class="plant-card">
+              <div class="plant-icon">🌴</div>
+              <strong class="plant-name" data-i18n="plant2Name">Areca Palm (सुपारी पाम)</strong>
+              <span class="plant-badge" data-i18n="plant2Badge">Natural Humidifier</span>
+              <p class="plant-text" data-i18n="plant2Text">Restores natural moisture to winter-dry indoor air, soothing irritated bronchial tubes and dry coughing.</p>
+            </div>
+            <div class="plant-card">
+              <div class="plant-icon">🍃</div>
+              <strong class="plant-name" data-i18n="plant3Name">Money Plant (Pothos)</strong>
+              <span class="plant-badge" data-i18n="plant3Badge">VOC & Formaldehyde Absorber</span>
+              <p class="plant-text" data-i18n="plant3Text">Absorbs volatile organic compounds released by synthetic carpets, varnishes, and gas burning.</p>
+            </div>
+            <div class="plant-card">
+              <div class="plant-icon">🌱</div>
+              <strong class="plant-name" data-i18n="plant4Name">Spider Plant</strong>
+              <span class="plant-badge" data-i18n="plant4Badge">Resilient & Safe for Pets</span>
+              <p class="plant-text" data-i18n="plant4Text">Completely non-toxic for dogs and cats while filtering out carbon monoxide and xylene fumes.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emergency / Smog Symptoms Quick Help for Elders & Asthma -->
+        <div class="health-checklist-card">
+          <div class="checklist-header">
+            <span class="alert-icon">⚠️</span>
+            <div>
+              <h4 class="checklist-title" data-i18n="sosTitle">Emergency Winter Smog Checklist for Vulnerable Family Members</h4>
+              <p class="checklist-sub" data-i18n="sosSubtitle">Keep these safeguards ready at home during Severe (AQI 400+) episodes:</p>
+            </div>
+          </div>
+          <div class="sos-grid">
+            <div class="sos-item">
+              <span class="sos-bullet">1</span>
+              <span data-i18n="sos1"><strong>Keep Inhalers Primed:</strong> Check counter dates on rescue inhalers (Salbutamol) and maintain a spare cylinder at home.</span>
+            </div>
+            <div class="sos-item">
+              <span class="sos-bullet">2</span>
+              <span data-i18n="sos2"><strong>Saline Nasal Rinse / Gargle:</strong> Lukewarm saline gargle washes trapped particulate soot out of the throat mucosa after outdoor transit.</span>
+            </div>
+            <div class="sos-item">
+              <span class="sos-bullet">3</span>
+              <span data-i18n="sos3"><strong>Hydration with Warm Fluids:</strong> Warm water, tulsi-ginger decoction keeps mucous membranes hydrated to trap dust before it reaches lungs.</span>
+            </div>
+            <div class="sos-item">
+              <span class="sos-bullet">4</span>
+              <span data-i18n="sos4"><strong>Fit-Check Certified N95 Mask:</strong> Ensure nose clip is pressed firmly to cheekbones with no gap for air leakage.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Back to Top / Revise Action -->
+        <div class="back-edit-row">
+          <button type="button" id="btnEditInputs" class="btn-outline" data-i18n="btnEditInputs">← Modify My Household Inputs</button>
+        </div>
+
+      </section>
+
+      <!-- Knowledge Base: Winter Smog Science in Simple Terms -->
+      <section class="faq-section">
+        <h3 class="section-title text-center" data-i18n="faqHeading">Why Winter Smog Is Different: Quick Answers</h3>
+        <p class="section-subtitle text-center" data-i18n="faqSub">Understanding the science makes protecting your family intuitive.</p>
+        
+        <div class="faq-accordion">
+          <details class="faq-item">
+            <summary class="faq-question">
+              <span data-i18n="faq1Q">What is 'Thermal Inversion' and why is 6:00 AM the most dangerous time?</span>
+              <span class="faq-arrow" aria-hidden="true">▾</span>
+            </summary>
+            <div class="faq-answer">
+              <p data-i18n="faq1A">In winter, the ground cools rapidly overnight. A layer of warm air sits above like a giant invisible lid (an 'inversion layer'), trapping vehicle exhaust, dust, and smoke right down at breathing height. Only when the midday sun (11:30 AM to 3:00 PM) warms the earth does this ceiling lift and pollutants disperse upward.</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-question">
+              <span data-i18n="faq2Q">Why does a cloth handkerchief or surgical mask not protect against PM2.5?</span>
+              <span class="faq-arrow" aria-hidden="true">▾</span>
+            </summary>
+            <div class="faq-answer">
+              <p data-i18n="faq2A">PM2.5 particles are microscopic—about 3% the width of a single human hair. A cotton handkerchief has gaps measuring 100 to 200 microns, allowing toxic particles to slide through unobstructed. Only certified N95, KN95, or FFP2 respirators with electrostatically charged meltblown fabric can trap over 95% of fine particles.</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-question">
+              <span data-i18n="faq3Q">Why is dry brooming (jhadu) worse than wet mopping indoors?</span>
+              <span class="faq-arrow" aria-hidden="true">▾</span>
+            </summary>
+            <div class="faq-answer">
+              <p data-i18n="faq3A">Dry brooming vigorously kicks settled dust and micro-soot back into the air, where it stays suspended at lung height for up to 4 hours. Wet mopping with a damp cloth traps dust particles on the floor surface and rinses them away safely.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Clean, Calming Footer -->
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <strong>VayuMitra • वायुमित्र</strong>
+        <p data-i18n="footerText">An urban public health initiative for families navigating winter smog. Simple steps, cleaner lungs, resilient communities.</p>
+      </div>
+      <div class="footer-links">
+        <span data-i18n="communityPledge">Together for Clean Air: Never burn leaves or waste. Report smog spots to municipal apps.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification / Copy Feedback -->
+  <div id="toastNotification" class="toast hidden" role="alert" aria-live="polite">
+    <span id="toastMessage">Plan copied to clipboard!</span>
+  </div>
+
+  <!-- Simulated Emergency Alert Banner Modal -->
+  <div id="emergencyAlertBanner" class="emergency-banner hidden" role="alertdialog" aria-modal="true">
+    <div class="emergency-banner-content">
+      <div class="emergency-icon-wrap" aria-hidden="true">🚨</div>
+      <div class="emergency-text-wrap">
+        <strong id="emergencyTitle">CRITICAL SMOG SPIKE DETECTED (AQI 448)</strong>
+        <p id="emergencyDesc">Morning ground inversion cap is at 110m in your locality. Children and asthma patients must stay indoors.</p>
+      </div>
+      <button type="button" id="btnCloseEmergencyBanner" class="btn-banner-close" aria-label="Close Alert">✕</button>
+    </div>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
